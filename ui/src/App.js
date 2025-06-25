@@ -443,41 +443,7 @@ function App() {
               ))}
             </ul>
           )}
-
-          {selectedAuctionId && (
-            <>
-              <h2>Offres pour l'enchère sélectionnée</h2>
-              {bids.length === 0 ? (
-                <p>Aucune offre pour cette enchère.</p>
-              ) : (
-                <ul className="auction-list">
-                  {bids.map(b => (
-                    <li key={b.id} className="auction-item">
-                      Offreur : {b.bidderName || b.bidderId} <br />
-                      Montant : {b.amount} <br />
-                      Date : {new Date(b.timestamp).toLocaleString()}
-                    </li>
-
-                  ))}
-                </ul>
-              )}
-
-              {auctions.find(a => a.id === selectedAuctionId)?.status !== 'closed' && (
-                <div>
-                  <input
-                    type="number"
-                    className="input"
-                    placeholder="Montant de l'offre"
-                    value={form.bid_amount}
-                    onChange={e => setForm({ ...form, bid_amount: e.target.value })}
-                  />
-                  <button className="button button-blue" onClick={placeBid}>
-                    Placer une offre
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+          
         </>
       )}
     </div>

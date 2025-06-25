@@ -12,7 +12,6 @@ let auctionId = 1;
 
 const USER_SERVICE_URL = 'http://localhost:3001';
 
-// Middleware d’authentification
 function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -27,25 +26,33 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Fonction pour enrichir une enchère avec l'email du propriétaire
-async function enrichAuction(auction) {
-  try {
-    console.log(`🔄 Tentative de récupération du user ${auction.owner_id}`);
-    const res = await fetch(`${USER_SERVICE_URL}/users/${auction.owner_id}`);
-    if (!res.ok) {
-      console.warn('❌ Utilisateur non trouvé');
-      return { ...auction, owner_name: 'Inconnu' };
-    }
-    const user = await res.json();
-    console.log('✅ Utilisateur récupéré :', user);
-    return { ...auction, owner_name: user.name };
-  } catch (error) {
-    console.error('❌ Erreur enrichAuction:', error);
-    return { ...auction, owner_name: 'Erreur' };
-  }
+function isFutureDate(dateStr) {
+  const now = new Date();
+  const input = new Date(dateStr);
+  return input > now;
 }
 
+function updateAuctionStatusIfNeeded(auction) {
+  if (auction.status === 'open' && new Date(auction.ends_at) < new Date()) {
+    auction.status = 'closed';
+  }
+  return auction;
+}
 
+async function enrichAuction(auction) {
+  const updatedAuction = updateAuctionStatusIfNeeded(auction);
+
+  try {
+    const res = await fetch(`${USER_SERVICE_URL}/users/${auction.owner_id}`);
+    if (!res.ok) {
+      return { ...updatedAuction, owner_name: 'Inconnu' };
+    }
+    const user = await res.json();
+    return { ...updatedAuction, owner_name: user.name };
+  } catch (error) {
+    return { ...updatedAuction, owner_name: 'Erreur' };
+  }
+}
 
 // POST /auctions
 app.post('/auctions', authenticateToken, async (req, res) => {
@@ -54,7 +61,10 @@ app.post('/auctions', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // Enrichir avec email
+  if (!isFutureDate(ends_at)) {
+    return res.status(400).json({ error: 'La date de fin doit être dans le futur.' });
+  }
+
   let owner_email = 'Inconnu';
   try {
     const resUser = await fetch(`${USER_SERVICE_URL}/users/${req.user.userId}`);
@@ -75,13 +85,12 @@ app.post('/auctions', authenticateToken, async (req, res) => {
     status: 'open',
     ends_at,
     owner_id: req.user.userId,
-    owner_email // Ajout immédiat
+    owner_email
   };
 
   auctions.push(auction);
-  res.status(201).json(auction); // renvoyer avec owner_email
+  res.status(201).json(auction);
 });
-
 
 // GET /auctions
 app.get('/auctions', async (req, res) => {
@@ -93,6 +102,10 @@ app.get('/auctions', async (req, res) => {
 app.get('/auctions/:id', (req, res) => {
   const auction = auctions.find(a => a.id === parseInt(req.params.id));
   if (!auction) return res.status(404).json({ error: 'Auction not found' });
+
+  // Mise à jour éventuelle du statut
+  updateAuctionStatusIfNeeded(auction);
+
   res.json(auction);
 });
 
@@ -100,10 +113,8 @@ app.get('/auctions/:id', (req, res) => {
 app.put('/auctions/:id', authenticateToken, (req, res) => {
   const id = parseInt(req.params.id);
   const auction = auctions.find(a => a.id === id);
-
   if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
-  // Si tentative mise à jour current_price
   if (req.body.current_price !== undefined) {
     if (typeof req.body.current_price !== 'number' || req.body.current_price <= 0) {
       return res.status(400).json({ error: 'Invalid current_price' });
@@ -111,21 +122,20 @@ app.put('/auctions/:id', authenticateToken, (req, res) => {
     auction.current_price = req.body.current_price;
   }
 
-  // Propriétaire peut modifier status et ends_at uniquement
   if (auction.owner_id !== req.user.userId) {
     if ('status' in req.body || 'ends_at' in req.body) {
       return res.status(403).json({ error: 'Forbidden: not the owner' });
     }
   } else {
+    if (req.body.ends_at && !isFutureDate(req.body.ends_at)) {
+      return res.status(400).json({ error: 'La date de fin doit être dans le futur.' });
+    }
     if (req.body.status) auction.status = req.body.status;
     if (req.body.ends_at) auction.ends_at = req.body.ends_at;
   }
 
   res.json(auction);
 });
-
-
-
 
 // DELETE /auctions/:id
 app.delete('/auctions/:id', authenticateToken, (req, res) => {
