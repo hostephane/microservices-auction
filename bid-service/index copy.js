@@ -30,6 +30,7 @@ function authenticateToken(req, res, next) {
 // POST /bids — faire une offre
 app.post('/bids', authenticateToken, async (req, res) => {
   try {
+    console.log('Requête POST /bids avec body:', req.body);
     const { auctionId, amount } = req.body;
 
     if (auctionId === undefined || amount === undefined) {
@@ -44,8 +45,8 @@ app.post('/bids', authenticateToken, async (req, res) => {
     if (!auctionRes.ok) return res.status(404).json({ error: 'Auction not found' });
     const auction = await auctionRes.json();
 
-    if (auction.status !== 'live') {
-      return res.status(400).json({ error: 'Auction is not live' });
+    if (auction.status !== 'open') {
+      return res.status(400).json({ error: 'Auction is closed' });
     }
 
     // Empêcher le propriétaire de l'enchère de placer une offre
@@ -68,16 +69,17 @@ app.post('/bids', authenticateToken, async (req, res) => {
     bids.push(bid);
 
     const updateRes = await fetch(`${AUCTION_SERVICE_URL}/auctions/${auctionId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: req.headers.authorization,
-      },
-      body: JSON.stringify({ current_price: amount }),
-    });
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: req.headers.authorization,
+        },
+        body: JSON.stringify({ current_price: amount }),
+        });
 
     if (!updateRes.ok) {
-      return res.status(500).json({ error: 'Erreur mise à jour prix courant dans auction-service' });
+    console.error('Erreur mise à jour prix courant dans auction-service');
+    return res.status(500).json({ error: 'Erreur mise à jour prix courant dans auction-service' });
     }
 
     res.status(201).json(bid);
@@ -92,13 +94,6 @@ app.get('/bids/:auctionId', (req, res) => {
   const auctionId = parseInt(req.params.auctionId);
   const auctionBids = bids.filter(b => b.auctionId === auctionId);
   res.json(auctionBids);
-});
-
-// GET /bids/user/:userId — récupérer toutes les offres d’un utilisateur
-app.get('/bids/user/:userId', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const userBids = bids.filter(b => b.bidderId === userId);
-  res.json(userBids);
 });
 
 app.listen(PORT, () => console.log(`Bid Service running on port ${PORT}`));

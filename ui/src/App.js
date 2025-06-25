@@ -126,8 +126,7 @@ function App() {
       .catch(err => setMessage(err.message));
   };
 
-  // Register, login, createAuction, logout = inchangés
-
+  // Register
   const register = () => {
     fetch(`${USER_API_URL}/register`, {
       method: 'POST',
@@ -154,6 +153,7 @@ function App() {
       .catch(() => setMessage('Erreur inscription'));
   };
 
+  // Login
   const login = () => {
     fetch(`${USER_API_URL}/login`, {
       method: 'POST',
@@ -176,39 +176,56 @@ function App() {
       .catch(() => setMessage('Erreur login'));
   };
 
-  const createAuction = () => {
-    const endsAtIso = form.ends_at
-      ? new Date(form.ends_at + 'T00:00:00').toISOString()
-      : new Date(Date.now() + 86400000).toISOString();
+const createAuction = () => {
+  if (!form.title.trim()) {
+    setMessage('Le titre est obligatoire');
+    return;
+  }
+  if (!form.starting_price || isNaN(form.starting_price) || Number(form.starting_price) <= 0) {
+    setMessage('Le prix de départ doit être un nombre positif');
+    return;
+  }
 
-    fetch(`${AUCTION_API_URL}/auctions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + token,
-      },
-      body: JSON.stringify({
-        title: form.title,
-        starting_price: Number(form.starting_price),
-        ends_at: endsAtIso,
-      }),
+  const startsAtIso = new Date().toISOString(); // début = maintenant
+  const endsAtIso = form.ends_at
+    ? new Date(form.ends_at + 'T00:00:00').toISOString()
+    : new Date(Date.now() + 86400000).toISOString();
+
+  fetch(`${AUCTION_API_URL}/auctions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + token,
+    },
+    body: JSON.stringify({
+      title: form.title.trim(),
+      starting_price: Number(form.starting_price),
+      starts_at: startsAtIso,  // ajout du starts_at
+      ends_at: endsAtIso,
+    }),
+  })
+    .then(async res => {
+      if (res.ok) {
+        setMessage('Enchère créée');
+        setForm({ ...form, title: '', starting_price: '', ends_at: '' });
+        const auctionsRes = await fetch(`${AUCTION_API_URL}/auctions`, {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        return auctionsRes.json();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Erreur création enchère');
+      }
     })
-      .then(res => {
-        if (res.ok) {
-          setMessage('Enchère créée');
-          setForm({ ...form, title: '', starting_price: '', ends_at: '' });
-          return fetch(`${AUCTION_API_URL}/auctions`, {
-            headers: { Authorization: 'Bearer ' + token },
-          });
-        } else {
-          throw new Error('Erreur création enchère');
-        }
-      })
-      .then(res => res.json())
-      .then(setAuctions)
-      .catch(() => setMessage('Erreur création enchère'));
-  };
+    .then(setAuctions)
+    .catch(err => setMessage(err.message));
+};
 
+
+
+
+
+  // Logout
   const logout = () => {
     setToken('');
     setUser(null);
@@ -443,7 +460,6 @@ function App() {
               ))}
             </ul>
           )}
-          
         </>
       )}
     </div>
