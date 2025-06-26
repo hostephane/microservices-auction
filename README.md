@@ -18,13 +18,13 @@ Fonctionnalités principales :
 ## Structure des dossiers et ports
 
 | Service                | Description                   | Port  |
-|------------------------|-------------------------------|-------|
-| `auth-gateway`         | Authentification JWT           | 3000  |
-| `user-service`         | Gestion utilisateurs           | 3001  |
-| `auction-service`      | Gestion des enchères           | 3002  |
-| `bid-service`          | Gestion des offres (bids)      | 3003  |
-| `notification-service` | Gestion des notifications      | 3004  |
-| `ui`                   | Frontend React                 | 3005  |
+|------------------------|------------------------------|-------|
+| `auth-gateway`         | Authentification JWT          | 3000  |
+| `user-service`         | Gestion utilisateurs          | 3001  |
+| `auction-service`      | Gestion des enchères          | 3002  |
+| `bid-service`          | Gestion des offres (bids)     | 3003  |
+| `notification-service` | Gestion des notifications     | 3004  |
+| `ui`                   | Frontend React                | 3005  |
 
 ---
 
@@ -34,8 +34,6 @@ Fonctionnalités principales :
 
 - Node.js (version 16+ recommandée)  
 - npm (gestionnaire de paquets)
-
----
 
 ### Étapes
 
@@ -47,55 +45,39 @@ npm install
 npm start
 ```
 
-Fonctionnalités & vérifications
-Tu peux vérifier et tester les fonctionnalités suivantes dans l’application :
+# Fonctionnalités & vérifications
 
-Authentification & utilisateurs
-Inscription d’un nouveau compte utilisateur.
+## Authentification & utilisateurs
+- Inscription d’un nouveau compte utilisateur
+- Connexion / Déconnexion avec gestion du token JWT
+- Gestion basique des données utilisateurs via API (CRUD)
 
-Connexion / Déconnexion avec JWT.
+## Enchères
+- Création d’une enchère (titre, prix de départ, date de fin)
+- Affichage des enchères (toutes et mes enchères)
+- Modification de la date de fin d’une enchère créée par soi-même
+- Fermeture manuelle d’une enchère (bouton “Fermer l’enchère”)
 
-Gestion des données utilisateur via API (CRUD basique).
+## Offres (bids)
+- Placer une offre supérieure sur une enchère en cours (“live”)
+- Interdiction d’enchérir sur sa propre enchère
+- Notifications envoyées :
+  - Au créateur de l’enchère à chaque nouvelle offre
+  - À l’ancien meilleur enchérisseur lorsqu’il est surenchéri
+  - À l’enchérisseur actuel pour confirmation
 
-Enchères
-Création d’une enchère (titre, prix de départ, date de fin).
+## Notifications
+- Affichage des notifications dans l’interface utilisateur
+- Suppression individuelle des notifications
+- Notification “Victoire” envoyée quand une offre est acceptée par le propriétaire
 
-Affichage des enchères (toutes, mes enchères).
+## Acceptation de l’offre gagnante
+- Bouton “Accepter l’offre” dans la liste “Mes enchères” pour une enchère fermée
+- Envoi d’une notification “Victoire” au dernier enchérisseur lorsque l’offre est acceptée
+- Une enchère fermée sans acceptation ne désigne pas de gagnant
 
-Modification de la date de fin d’une enchère créée par soi-même.
-
-Fermeture manuelle d’une enchère (bouton “Fermer l’enchère”).
-
-Offres (bids)
-Placer une offre supérieure sur une enchère “live”.
-
-Ne pas pouvoir enchérir sur sa propre enchère.
-
-Notification au créateur de l’enchère à chaque nouvelle offre.
-
-Notification à l’ancien meilleur enchérisseur quand il est surenchéri.
-
-Notification de confirmation à l’enchérisseur actuel.
-
-Notifications
-Affichage des notifications dans l’interface.
-
-Suppression individuelle d’une notification.
-
-Notification spécifique “Victoire” quand une offre est acceptée par le propriétaire.
-
-Acceptation de l’offre gagnante
-Bouton “Accepter l’offre” dans la liste “Mes enchères” pour l’enchère fermée.
-
-Envoi d’une notification “Victoire” au dernier enchérisseur lorsque le propriétaire accepte l’offre.
-
-L’enchère ne désigne pas de gagnant si elle est simplement fermée sans acceptation.
-
-Notes
-Les services communiquent entre eux via HTTP sur localhost et les ports indiqués.
-
-Les données sont stockées en mémoire (pas de persistance).
-
-JWT utilise une clé secrète simple (SECRET_KEY).
-
-Le frontend utilise React avec fetch API.
+## Notes techniques
+- Les services communiquent entre eux via HTTP sur localhost et les ports indiqués
+- Les données sont stockées en mémoire (pas de persistance sur disque)
+- Le JWT utilise une clé secrète simple (variable SECRET_KEY)
+- Le frontend React utilise la fetch API pour les appels réseau
