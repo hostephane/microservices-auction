@@ -11,6 +11,7 @@ let auctions = [];
 let auctionId = 1;
 
 const USER_SERVICE_URL = 'http://localhost:3001';
+const NOTIF_SERVICE_URL = 'http://localhost:3004';
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -82,7 +83,7 @@ app.post('/auctions', authenticateToken, async (req, res) => {
     ends_at,
     owner_id: req.user.userId,
     owner_email,
-    winner_id: null, // ajout
+    winner_id: null,
   };
 
   auctions.push(auction);
@@ -150,10 +151,9 @@ app.delete('/auctions/:id', authenticateToken, (req, res) => {
   res.status(204).send();
 });
 
-// ✅ Route pour accepter le gagnant
-app.post('/auctions/:id/accept', authenticateToken, (req, res) => {
+// Route pour accepter le gagnant et envoyer la notif
+app.post('/auctions/:id/accept', authenticateToken, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { winner_id } = req.body;
 
   const auction = auctions.find(a => a.id === id);
   if (!auction) return res.status(404).json({ error: 'Auction not found' });
@@ -162,12 +162,43 @@ app.post('/auctions/:id/accept', authenticateToken, (req, res) => {
     return res.status(403).json({ error: 'You are not the owner of this auction' });
   }
 
+  // On met fin à l'enchère en mettant ends_at à maintenant si elle n'est pas finie
   if (computeStatus(auction.starts_at, auction.ends_at) !== 'ended') {
-    return res.status(400).json({ error: 'Auction is not ended yet' });
+    auction.ends_at = new Date().toISOString();
+  }
+
+  // Récupérer les offres (il faudrait que tu gères ça dans ton service bids)
+  // Pour l'exemple, supposons que winner_id est passé dans le corps, sinon on prend winner_id actuel
+  let winner_id = req.body.winner_id || auction.winner_id;
+
+  if (!winner_id) {
+    return res.status(400).json({ error: 'Winner id is required' });
   }
 
   auction.winner_id = winner_id;
-  res.json({ message: 'Winner accepted', auction });
+
+  // Envoi notification au gagnant
+  try {
+    const notifRes = await fetch(`${NOTIF_SERVICE_URL}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: winner_id,
+        message: `Vous avez gagné l'enchère "${auction.title}" !`,
+        auction_id: auction.id,
+        type: 'Gagnant',
+      }),
+    });
+
+    if (!notifRes.ok) {
+      console.error('Erreur envoi notif gagnant');
+    }
+  } catch (e) {
+    console.error('Erreur envoi notif gagnant', e);
+  }
+
+  const enrichedAuction = await enrichAuction(auction);
+  res.json({ message: 'Winner accepted and notified', auction: enrichedAuction });
 });
 
 const PORT = process.env.PORT || 3002;

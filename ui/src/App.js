@@ -27,68 +27,85 @@ function App() {
   const [bids, setBids] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(true);
+  const [lastBids, setLastBids] = useState({});
 
-  // Mes enchères
   const myAuctions = auctions.filter(a => user && a.owner_id === user.userId);
 
-// Rafraîchissement périodique des enchères
-useEffect(() => {
-  if (!token) return;
+  useEffect(() => {
+    if (!token) return;
 
-  const fetchAuctions = () => {
-    fetch(`${AUCTION_API_URL}/auctions`, {
-      headers: { Authorization: 'Bearer ' + token },
-    })
-      .then(res => res.json())
-      .then(setAuctions)
-      .catch(() => setAuctions([]));
-  };
+    const fetchAuctions = () => {
+      fetch(`${AUCTION_API_URL}/auctions`, {
+        headers: { Authorization: 'Bearer ' + token },
+      })
+        .then(res => res.json())
+        .then(setAuctions)
+        .catch(() => setAuctions([]));
+    };
 
-  fetchAuctions(); // fetch initial
+    fetchAuctions();
 
-  const intervalId = setInterval(fetchAuctions, 5000); // toutes les 5 secondes
+    const intervalId = setInterval(fetchAuctions, 5000);
+    return () => clearInterval(intervalId);
+  }, [token]);
 
-  return () => clearInterval(intervalId);
-}, [token]);
+  useEffect(() => {
+    if (selectedAuctionId && token) {
+      fetch(`${BID_API_URL}/bids/${selectedAuctionId}`, {
+        headers: { Authorization: 'Bearer ' + token },
+      })
+        .then(res => res.json())
+        .then(setBids)
+        .catch(() => setBids([]));
+    } else {
+      setBids([]);
+    }
+  }, [selectedAuctionId, token]);
 
+  useEffect(() => {
+    if (!token || !user?.id) return;
 
-// Chargement des offres pour l'enchère sélectionnée
-useEffect(() => {
-  if (selectedAuctionId && token) {
-    fetch(`${BID_API_URL}/bids/${selectedAuctionId}`, {
-      headers: { Authorization: 'Bearer ' + token },
-    })
-      .then(res => res.json())
-      .then(setBids)
-      .catch(() => setBids([]));
-  } else {
-    setBids([]);
-  }
-}, [selectedAuctionId, token]);
+    const fetchNotifications = () => {
+      fetch(`${NOTIF_API_URL}/notifications/user/${user.id}`, {
+        headers: { Authorization: 'Bearer ' + token },
+      })
+        .then(res => res.json())
+        .then(setNotifications)
+        .catch(() => setNotifications([]));
+    };
 
-// Chargement des notifications pour l'utilisateur connecté avec rafraîchissement toutes les 5 secondes
-useEffect(() => {
-  if (!token || !user?.id) return;
+    fetchNotifications();
 
-  const fetchNotifications = () => {
-    fetch(`${NOTIF_API_URL}/notifications/user/${user.id}`, {
-      headers: { Authorization: 'Bearer ' + token },
-    })
-      .then(res => res.json())
-      .then(setNotifications)
-      .catch(() => setNotifications([]));
-  };
+    const intervalId = setInterval(fetchNotifications, 5000);
+    return () => clearInterval(intervalId);
+  }, [token, user]);
 
-  fetchNotifications(); // fetch initial
+  useEffect(() => {
+    if (!token || auctions.length === 0) return;
 
-  const intervalId = setInterval(fetchNotifications, 5000); // toutes les 5 secondes
+    const fetchLastBids = async () => {
+      const obj = {};
+      for (const auction of auctions) {
+        try {
+          const res = await fetch(`${BID_API_URL}/bids/${auction.id}`, {
+            headers: { Authorization: 'Bearer ' + token },
+          });
+          if (!res.ok) continue;
+          const bids = await res.json();
 
-  return () => clearInterval(intervalId); // nettoyage à la désactivation du composant ou changement token/user
-}, [token, user]);
+          if (bids.length > 0) {
+            const lastBid = bids[bids.length - 1];
+            obj[auction.id] = lastBid.bidderId ?? lastBid.user_id ?? null;
+          }
+        } catch {}
+      }
+      setLastBids(obj);
+    };
 
+    fetchLastBids();
+  }, [auctions, token]);
 
-
-  // 📦 Auth
+  // Auth functions
   const register = () => {
     fetch(`${USER_API_URL}/register`, {
       method: 'POST',
@@ -139,7 +156,7 @@ useEffect(() => {
     setMessage('Déconnecté');
   };
 
-  // 🎯 Enchères
+  // Auction functions
   const createAuction = () => {
     if (!form.title.trim()) {
       setMessage('Le titre est obligatoire');
@@ -207,7 +224,7 @@ useEffect(() => {
       .catch(() => setMessage('Erreur mise à jour enchère'));
   };
 
-  // 💸 Offres
+  // Bidding
   const placeBidOnAuction = (auctionId, amount) => {
     fetch(`${BID_API_URL}/bids`, {
       method: 'POST',
@@ -246,18 +263,42 @@ useEffect(() => {
       .catch(err => setMessage(err.message));
   };
 
-  const onDeleteNotification = (id) => {
-  fetch(`${NOTIF_API_URL}/notifications/${id}`, {
-    method: 'DELETE',
-    headers: { Authorization: 'Bearer ' + token }
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Échec suppression notification');
-      setNotifications(notifications => notifications.filter(n => n.id !== id));
+  // Accept winning bid - send winner_id in body
+  const acceptAuctionWinner = (auctionId, winnerId) => {
+    fetch(`${AUCTION_API_URL}/auctions/${auctionId}/accept`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token,
+      },
+      body: JSON.stringify({ winner_id: winnerId }),
     })
-    .catch(() => setMessage("Erreur lors de la suppression de la notification"));
-};
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => {
+            throw new Error(data.error || "Erreur lors de l'acceptation de l'offre");
+          });
+        }
+        return res.json();
+      })
+      .then(updatedAuction => {
+        setMessage("Offre gagnante acceptée");
+        setAuctions(auctions.map(a => (a.id === updatedAuction.id ? updatedAuction : a)));
+      })
+      .catch(err => setMessage(err.message));
+  };
 
+  const onDeleteNotification = (id) => {
+    fetch(`${NOTIF_API_URL}/notifications/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token }
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Échec suppression notification');
+        setNotifications(notifications => notifications.filter(n => n.id !== id));
+      })
+      .catch(() => setMessage("Erreur lors de la suppression de la notification"));
+  };
 
   return (
     <MainUI
@@ -280,6 +321,8 @@ useEffect(() => {
       updateAuction={updateAuction}
       placeBidOnAuction={placeBidOnAuction}
       setShowNotifications={setShowNotifications}
+      acceptAuctionWinner={acceptAuctionWinner}
+      lastBids={lastBids}
       onDeleteNotification={onDeleteNotification}
     />
   );
