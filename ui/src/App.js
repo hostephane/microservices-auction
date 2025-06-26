@@ -66,10 +66,14 @@ function App() {
     if (!token || !user?.id) return;
 
     const fetchNotifications = () => {
-      fetch(`${NOTIF_API_URL}/notifications/user/${user.id}`, {
+      // Important : URL correcte sans "/user/"
+      fetch(`${NOTIF_API_URL}/notifications/${user.id}`, {
         headers: { Authorization: 'Bearer ' + token },
       })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error('Erreur récupération notifications');
+          return res.json();
+        })
         .then(setNotifications)
         .catch(() => setNotifications([]));
     };
@@ -305,6 +309,7 @@ function App() {
       token={token}
       user={user}
       message={message}
+      setMessage={setMessage}  
       isRegister={isRegister}
       form={form}
       auctions={auctions}
