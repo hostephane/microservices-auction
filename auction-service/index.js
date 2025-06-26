@@ -82,6 +82,7 @@ app.post('/auctions', authenticateToken, async (req, res) => {
     ends_at,
     owner_id: req.user.userId,
     owner_email,
+    winner_id: null, // ajout
   };
 
   auctions.push(auction);
@@ -147,6 +148,26 @@ app.delete('/auctions/:id', authenticateToken, (req, res) => {
   }
   auctions = auctions.filter(a => a.id !== id);
   res.status(204).send();
+});
+
+// ✅ Route pour accepter le gagnant
+app.post('/auctions/:id/accept', authenticateToken, (req, res) => {
+  const id = parseInt(req.params.id);
+  const { winner_id } = req.body;
+
+  const auction = auctions.find(a => a.id === id);
+  if (!auction) return res.status(404).json({ error: 'Auction not found' });
+
+  if (auction.owner_id !== req.user.userId) {
+    return res.status(403).json({ error: 'You are not the owner of this auction' });
+  }
+
+  if (computeStatus(auction.starts_at, auction.ends_at) !== 'ended') {
+    return res.status(400).json({ error: 'Auction is not ended yet' });
+  }
+
+  auction.winner_id = winner_id;
+  res.json({ message: 'Winner accepted', auction });
 });
 
 const PORT = process.env.PORT || 3002;

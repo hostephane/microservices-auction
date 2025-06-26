@@ -1,11 +1,11 @@
 // src/MainUI.jsx
-import React from 'react';
+import React, { useState } from 'react';
 
 function MainUI({
   token,
   user,
   message,
-  setMessage, 
+  setMessage,
   isRegister,
   form,
   auctions,
@@ -22,8 +22,17 @@ function MainUI({
   updateAuction,
   placeBidOnAuction,
   setShowNotifications,
-  onDeleteNotification
+  onDeleteNotification,
+  lastBids = {}, // <= nouvel argument
+  acceptAuctionWinner, // <= nouvelle fonction
 }) {
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  const filteredAuctions =
+    filterStatus === 'all'
+      ? auctions
+      : auctions.filter((a) => a.status === filterStatus);
+
   return (
     <div style={{ padding: 20, fontFamily: 'Arial, sans-serif' }}>
       {/* TITRE + MESSAGE */}
@@ -61,42 +70,26 @@ function MainUI({
           {isRegister ? (
             <>
               <h2>Inscription</h2>
-              <input
-                className="input"
-                placeholder="Nom"
-                value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
+              <input className="input" placeholder="Nom" value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 style={{ width: '100%', marginBottom: 10, padding: 8 }}
               />
-              <input
-                className="input"
-                placeholder="Email"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
+              <input className="input" placeholder="Email" value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 style={{ width: '100%', marginBottom: 10, padding: 8 }}
               />
-              <input
-                type="password"
-                className="input"
-                placeholder="Mot de passe"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
+              <input type="password" className="input" placeholder="Mot de passe" value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
                 style={{ width: '100%', marginBottom: 15, padding: 8 }}
               />
-              <button
-                className="button button-green"
-                onClick={register}
-                style={{ width: '100%', padding: 10, fontWeight: 'bold' }}
-              >
+              <button className="button button-green" onClick={register}
+                style={{ width: '100%', padding: 10, fontWeight: 'bold' }}>
                 S'inscrire
               </button>
               <p style={{ marginTop: 15, textAlign: 'center' }}>
                 Déjà un compte ?{' '}
-                <button
-                  className="link-button"
-                  onClick={() => setIsRegister(false)}
-                  style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer' }}
-                >
+                <button className="link-button" onClick={() => setIsRegister(false)}
+                  style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer' }}>
                   Se connecter
                 </button>
               </p>
@@ -104,35 +97,22 @@ function MainUI({
           ) : (
             <>
               <h2>Connexion</h2>
-              <input
-                className="input"
-                placeholder="Email"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
+              <input className="input" placeholder="Email" value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 style={{ width: '100%', marginBottom: 10, padding: 8 }}
               />
-              <input
-                type="password"
-                className="input"
-                placeholder="Mot de passe"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
+              <input type="password" className="input" placeholder="Mot de passe" value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
                 style={{ width: '100%', marginBottom: 15, padding: 8 }}
               />
-              <button
-                className="button button-blue"
-                onClick={login}
-                style={{ width: '100%', padding: 10, fontWeight: 'bold' }}
-              >
+              <button className="button button-blue" onClick={login}
+                style={{ width: '100%', padding: 10, fontWeight: 'bold' }}>
                 Se connecter
               </button>
               <p style={{ marginTop: 15, textAlign: 'center' }}>
                 Pas de compte ?{' '}
-                <button
-                  className="link-button"
-                  onClick={() => setIsRegister(true)}
-                  style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer' }}
-                >
+                <button className="link-button" onClick={() => setIsRegister(true)}
+                  style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer' }}>
                   S'inscrire
                 </button>
               </p>
@@ -143,10 +123,8 @@ function MainUI({
         <div style={{ display: 'flex', gap: 30 }}>
           {/* Colonne Gauche */}
           <div style={{ flex: 1, maxWidth: '45%' }}>
-            <div
-              className="flex-between"
-              style={{ marginBottom: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
+            <div className="flex-between"
+              style={{ marginBottom: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ margin: 0 }}>Créer une enchère</h2>
               <div>
                 {user && (
@@ -160,35 +138,23 @@ function MainUI({
               </div>
             </div>
 
-            <input
-              className="input"
-              placeholder="Titre"
-              value={form.title}
-              onChange={e => setForm({ ...form, title: e.target.value })}
+            <input className="input" placeholder="Titre" value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
               style={{ width: '100%', marginBottom: 10, padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
             />
-            <input
-              type="number"
-              className="input"
-              placeholder="Prix de départ"
-              value={form.starting_price}
-              onChange={e => setForm({ ...form, starting_price: e.target.value })}
+            <input type="number" className="input" placeholder="Prix de départ" value={form.starting_price}
+              onChange={(e) => setForm({ ...form, starting_price: e.target.value })}
               style={{ width: '100%', marginBottom: 10, padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
             />
             <label style={{ marginBottom: 10, display: 'block', fontSize: 14 }}>
               Date de fin :
-              <input
-                type="date"
-                value={form.ends_at}
-                onChange={e => setForm({ ...form, ends_at: e.target.value })}
+              <input type="date" value={form.ends_at}
+                onChange={(e) => setForm({ ...form, ends_at: e.target.value })}
                 style={{ marginLeft: 10, padding: 6, borderRadius: 4, border: '1px solid #ccc' }}
               />
             </label>
-            <button
-              className="button button-green"
-              onClick={createAuction}
-              style={{ marginBottom: 30, width: '100%', padding: 10, fontWeight: 'bold' }}
-            >
+            <button className="button button-green" onClick={createAuction}
+              style={{ marginBottom: 30, width: '100%', padding: 10, fontWeight: 'bold' }}>
               Créer
             </button>
 
@@ -196,8 +162,7 @@ function MainUI({
             {myAuctions.length === 0 ? (
               <p>Aucune enchère créée par vous.</p>
             ) : (
-              <ul
-                className="auction-list"
+              <ul className="auction-list"
                 style={{
                   listStyle: 'none',
                   paddingLeft: 0,
@@ -208,10 +173,8 @@ function MainUI({
                   padding: 10,
                 }}
               >
-                {myAuctions.map(a => (
-                  <li
-                    key={a.id}
-                    className="auction-item"
+                {myAuctions.map((a) => (
+                  <li key={a.id} className="auction-item"
                     style={{
                       cursor: 'pointer',
                       borderBottom: '1px solid #eee',
@@ -228,22 +191,20 @@ function MainUI({
 
                     <label style={{ fontSize: 13 }}>
                       Modifier date fin :
-                      <input
-                        type="date"
-                        value={a.ends_at.slice(0, 10)}
-                        onChange={e =>
-                          updateAuction(a.id, { ends_at: new Date(e.target.value + 'T00:00:00').toISOString() })
+                      <input type="date" value={a.ends_at.slice(0, 10)}
+                        onChange={(e) =>
+                          updateAuction(a.id, {
+                            ends_at: new Date(e.target.value + 'T00:00:00').toISOString(),
+                          })
                         }
                         style={{ marginLeft: 10, padding: 4, borderRadius: 4, border: '1px solid #ccc' }}
-                        onClick={e => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </label>
 
-                    {a.status !== 'closed' && (
-                      <button
-                        className="button button-red"
-                        style={{ marginLeft: 10, marginTop: 8 }}
-                        onClick={e => {
+                    {a.status !== 'ended' && (
+                      <button className="button button-red" style={{ marginLeft: 10, marginTop: 8 }}
+                        onClick={(e) => {
                           e.stopPropagation();
                           updateAuction(a.id, {
                             ends_at: new Date(Date.now() - 1000).toISOString(),
@@ -251,6 +212,19 @@ function MainUI({
                         }}
                       >
                         Fermer l'enchère
+                      </button>
+                    )}
+
+                    {/* ✅ Bouton pour accepter le gagnant */}
+                    {a.status === 'ended' && lastBids[a.id] && (
+                      <button className="button button-green"
+                        style={{ marginLeft: 10, marginTop: 8 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          acceptAuctionWinner(a.id);
+                        }}
+                      >
+                        Accepter l'offre gagnante
                       </button>
                     )}
                   </li>
@@ -263,21 +237,16 @@ function MainUI({
           <div style={{ flex: 1, maxWidth: '55%', display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Notifications */}
             {notifications.length > 0 && showNotifications && (
-              <div
-                style={{
-                  border: '1px solid #ccc',
-                  padding: 15,
-                  maxHeight: 200,
-                  overflowY: 'auto',
-                  backgroundColor: '#f9f9f9',
-                  borderRadius: 6,
-                  position: 'relative',
-                }}
-              >
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  aria-label="Fermer notifications"
-                  title="Fermer"
+              <div style={{
+                border: '1px solid #ccc',
+                padding: 15,
+                maxHeight: 200,
+                overflowY: 'auto',
+                backgroundColor: '#f9f9f9',
+                borderRadius: 6,
+                position: 'relative',
+              }}>
+                <button onClick={() => setShowNotifications(false)} aria-label="Fermer notifications" title="Fermer"
                   style={{
                     position: 'absolute',
                     top: 5,
@@ -293,9 +262,8 @@ function MainUI({
                 </button>
                 <h3 style={{ marginTop: 0, marginBottom: 10 }}>Notifications</h3>
                 <ul style={{ listStyle: 'none', paddingLeft: 0, margin: 0 }}>
-                  {notifications.map(n => (
-                    <li
-                      key={n.id}
+                  {notifications.map((n) => (
+                    <li key={n.id}
                       style={{
                         padding: '6px 0',
                         borderBottom: '1px solid #eee',
@@ -303,9 +271,7 @@ function MainUI({
                         fontSize: 14,
                       }}
                     >
-                      <button
-                        onClick={() => onDeleteNotification(n.id)}
-                        title="Supprimer"
+                      <button onClick={() => onDeleteNotification(n.id)} title="Supprimer"
                         style={{
                           position: 'absolute',
                           right: 0,
@@ -320,8 +286,7 @@ function MainUI({
                       >
                         ✖
                       </button>
-                      <strong>{n.type || 'Info'}</strong> — {n.message}
-                      <br />
+                      <strong>{n.type || 'Info'}</strong> — {n.message}<br />
                       <small style={{ color: '#555' }}>{new Date(n.timestamp).toLocaleString()}</small>
                     </li>
                   ))}
@@ -330,78 +295,86 @@ function MainUI({
             )}
 
             {/* Toutes les enchères */}
-            <div
-              style={{
-                border: '1px solid #ddd',
-                borderRadius: 6,
-                padding: 15,
-                flexGrow: 1,
-                overflowY: 'auto',
-              }}
-            >
+            <div style={{ border: '1px solid #ddd', borderRadius: 6, padding: 15, flexGrow: 1, overflowY: 'auto' }}>
               <h2 style={{ marginTop: 0 }}>Toutes les enchères</h2>
-              {auctions.length === 0 ? (
-                <p>Aucune enchère disponible.</p>
+              <label style={{ display: 'block', marginBottom: 10 }}>
+                Filtrer par statut:{' '}
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                  style={{
+                    padding: 6,
+                    borderRadius: 4,
+                    border: '1px solid #ccc',
+                    minWidth: 120,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="all">Tous</option>
+                  <option value="pending">Pending</option>
+                  <option value="live">Live</option>
+                  <option value="ended">Ended</option>
+                </select>
+              </label>
+
+              {filteredAuctions.length === 0 ? (
+                <p>Aucune enchère disponible pour ce filtre.</p>
               ) : (
                 <ul style={{ listStyle: 'none', paddingLeft: 0, margin: 0 }}>
-                  {auctions.map(a => (
-                    <li
-                      key={a.id}
-                      className="auction-item"
-                      style={{
-                        cursor: 'pointer',
-                        borderBottom: '1px solid #eee',
-                        padding: '10px 5px',
-                        userSelect: 'none',
-                      }}
-                      onClick={() => setSelectedAuctionId(a.id)}
-                    >
-                      <strong>{a.title}</strong> <br />
-                      Prix courant : {a.current_price} <br />
-                      Statut : {a.status} <br />
-                      Date de fin : {new Date(a.ends_at).toLocaleDateString()} <br />
-                      Créée par : {a.owner_name || 'Inconnu'}
+                  {filteredAuctions.map((a) => {
+                    const isLastBidder = lastBids[a.id] === user?.id;
+                    return (
+                      <li key={a.id} className="auction-item"
+                        style={{
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #eee',
+                          padding: '10px 5px',
+                          userSelect: 'none',
+                          backgroundColor: isLastBidder ? '#e6ffe6' : 'transparent',
+                        }}
+                        onClick={() => setSelectedAuctionId(a.id)}
+                      >
+                        <strong>{a.title}</strong> <br />
+                        Prix courant : {a.current_price} <br />
+                        Statut : {a.status} <br />
+                        Date de fin : {new Date(a.ends_at).toLocaleDateString()} <br />
+                        Créée par : {a.owner_name || 'Inconnu'}
 
-                      {a.status !== 'closed' && (
-                        <div style={{ marginTop: 10 }}>
-                          <input
-                            type="number"
-                            className="input"
-                            placeholder="Montant de l'offre"
-                            value={form.bid_amounts?.[a.id] || ''}
-                            onChange={e =>
-                              setForm(form => ({
-                                ...form,
-                                bid_amounts: { ...(form.bid_amounts || {}), [a.id]: e.target.value },
-                              }))
-                            }
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              width: 120,
-                              padding: 6,
-                              borderRadius: 4,
-                              border: '1px solid #ccc',
-                            }}
-                          />
-                          <button
-                            className="button button-blue"
-                            onClick={e => {
-                              e.stopPropagation();
-                              const amount = Number(form.bid_amounts?.[a.id]);
-                              if (!amount || amount <= 0) {
-                                setMessage('Entrez un montant valide');
-                                return;
+                        {a.status !== 'ended' && (
+                          <div style={{ marginTop: 10 }}>
+                            <input type="number" className="input" placeholder="Montant de l'offre"
+                              value={form.bid_amounts?.[a.id] || ''}
+                              onChange={(e) =>
+                                setForm((form) => ({
+                                  ...form,
+                                  bid_amounts: { ...(form.bid_amounts || {}), [a.id]: e.target.value },
+                                }))
                               }
-                              placeBidOnAuction(a.id, amount);
-                            }}
-                            style={{ marginLeft: 10, padding: '6px 12px' }}
-                          >
-                            Placer offre
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  ))}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                width: 120,
+                                padding: 6,
+                                borderRadius: 4,
+                                border: '1px solid #ccc',
+                              }}
+                            />
+                            <button className="button button-blue"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const amount = Number(form.bid_amounts?.[a.id]);
+                                if (!amount || amount <= 0) {
+                                  setMessage('Entrez un montant valide');
+                                  return;
+                                }
+                                placeBidOnAuction(a.id, amount);
+                              }}
+                              style={{ marginLeft: 10, padding: '6px 12px' }}
+                            >
+                              Placer offre
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

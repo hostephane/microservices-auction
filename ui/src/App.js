@@ -31,17 +31,26 @@ function App() {
   // Mes enchères
   const myAuctions = auctions.filter(a => user && a.owner_id === user.userId);
 
-// Chargement des enchères à chaque changement de token (connexion/déconnexion)
+// Rafraîchissement périodique des enchères
 useEffect(() => {
   if (!token) return;
 
-  fetch(`${AUCTION_API_URL}/auctions`, {
-    headers: { Authorization: 'Bearer ' + token },
-  })
-    .then(res => res.json())
-    .then(setAuctions)
-    .catch(() => setAuctions([]));
+  const fetchAuctions = () => {
+    fetch(`${AUCTION_API_URL}/auctions`, {
+      headers: { Authorization: 'Bearer ' + token },
+    })
+      .then(res => res.json())
+      .then(setAuctions)
+      .catch(() => setAuctions([]));
+  };
+
+  fetchAuctions(); // fetch initial
+
+  const intervalId = setInterval(fetchAuctions, 5000); // toutes les 5 secondes
+
+  return () => clearInterval(intervalId);
 }, [token]);
+
 
 // Chargement des offres pour l'enchère sélectionnée
 useEffect(() => {
@@ -57,12 +66,12 @@ useEffect(() => {
   }
 }, [selectedAuctionId, token]);
 
-// Chargement des notifications avec rafraîchissement toutes les 5 secondes
+// Chargement des notifications pour l'utilisateur connecté avec rafraîchissement toutes les 5 secondes
 useEffect(() => {
-  if (!token) return;
+  if (!token || !user?.id) return;
 
   const fetchNotifications = () => {
-    fetch(`${NOTIF_API_URL}/notifications`, {
+    fetch(`${NOTIF_API_URL}/notifications/user/${user.id}`, {
       headers: { Authorization: 'Bearer ' + token },
     })
       .then(res => res.json())
@@ -72,10 +81,11 @@ useEffect(() => {
 
   fetchNotifications(); // fetch initial
 
-  const intervalId = setInterval(fetchNotifications, 5000); // toutes les 5s
+  const intervalId = setInterval(fetchNotifications, 5000); // toutes les 5 secondes
 
-  return () => clearInterval(intervalId); // nettoyage à la désactivation du composant ou changement token
-}, [token]);
+  return () => clearInterval(intervalId); // nettoyage à la désactivation du composant ou changement token/user
+}, [token, user]);
+
 
 
   // 📦 Auth
