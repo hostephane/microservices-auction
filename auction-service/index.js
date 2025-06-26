@@ -53,7 +53,6 @@ async function enrichAuction(auction) {
   }
 }
 
-// POST /auctions
 app.post('/auctions', authenticateToken, async (req, res) => {
   const { title, description = '', starting_price, starts_at, ends_at } = req.body;
   if (!title || !starting_price || !starts_at || !ends_at) {
@@ -89,26 +88,22 @@ app.post('/auctions', authenticateToken, async (req, res) => {
   res.status(201).json({ ...auction, status: computeStatus(starts_at, ends_at) });
 });
 
-// GET /auctions
 app.get('/auctions', async (req, res) => {
   const enriched = await Promise.all(auctions.map(enrichAuction));
   res.json(enriched);
 });
 
-// GET /auctions/:id
 app.get('/auctions/:id', (req, res) => {
   const auction = auctions.find(a => a.id === parseInt(req.params.id));
   if (!auction) return res.status(404).json({ error: 'Auction not found' });
   res.json({ ...auction, status: computeStatus(auction.starts_at, auction.ends_at) });
 });
 
-// PUT /auctions/:id
-app.put('/auctions/:id', authenticateToken, (req, res) => {
+app.put('/auctions/:id', authenticateToken, async (req, res) => {
   const id = parseInt(req.params.id);
   const auction = auctions.find(a => a.id === id);
   if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
-  // Si on met à jour starts_at ou ends_at, on vérifie que c'est le propriétaire
   if (req.body.starts_at || req.body.ends_at) {
     if (auction.owner_id !== req.user.userId) {
       return res.status(403).json({ error: 'Forbidden: not the owner' });
@@ -117,8 +112,9 @@ app.put('/auctions/:id', authenticateToken, (req, res) => {
 
   if (req.body.ends_at) {
     const end = new Date(req.body.ends_at);
-    if (isNaN(end) || end <= new Date() || end <= new Date(auction.starts_at)) {
-      return res.status(400).json({ error: 'Invalid ends_at' });
+    const start = new Date(auction.starts_at);
+    if (isNaN(end) || end <= start) {
+      return res.status(400).json({ error: 'Invalid ends_at: must be after starts_at' });
     }
     auction.ends_at = req.body.ends_at;
   }
@@ -131,7 +127,6 @@ app.put('/auctions/:id', authenticateToken, (req, res) => {
     auction.starts_at = req.body.starts_at;
   }
 
-  // Autoriser la mise à jour current_price pour tout utilisateur authentifié (bid-service)
   if (req.body.current_price !== undefined) {
     if (typeof req.body.current_price !== 'number' || req.body.current_price <= auction.current_price) {
       return res.status(400).json({ error: 'Invalid current_price' });
@@ -139,12 +134,10 @@ app.put('/auctions/:id', authenticateToken, (req, res) => {
     auction.current_price = req.body.current_price;
   }
 
-  res.json({ ...auction, status: computeStatus(auction.starts_at, auction.ends_at) });
+  const enrichedAuction = await enrichAuction(auction);
+  res.json(enrichedAuction);
 });
 
-
-
-// DELETE /auctions/:id
 app.delete('/auctions/:id', authenticateToken, (req, res) => {
   const id = parseInt(req.params.id);
   const auction = auctions.find(a => a.id === id);

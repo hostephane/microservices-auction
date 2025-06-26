@@ -70,6 +70,9 @@ function App() {
         if (selectedAuctionId === updatedAuction.id) setSelectedAuctionId(updatedAuction.id); // rafraîchir bids si besoin
       })
       .catch(() => setMessage('Erreur mise à jour enchère'));
+
+      console.log('Update auction payload:', updates);
+
   };
 
   // Placer une nouvelle offre sur enchère sélectionnée (bouton général)
@@ -88,43 +91,46 @@ function App() {
 
   // Placer une offre sur une enchère donnée (utilisé aussi dans liste "Toutes les enchères")
   const placeBidOnAuction = (auctionId, amount) => {
-    fetch(`${BID_API_URL}/bids`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + token,
-      },
-      body: JSON.stringify({ auctionId, amount }),
-    })
-      .then(res => {
-        if (!res.ok) {
-          return res.json().then(data => {
-            throw new Error(data.error || "Erreur lors de l'offre");
-          });
-        }
-        return res.json();
-      })
-      .then(newBid => {
-        setMessage(`Offre placée sur "${auctions.find(a => a.id === auctionId)?.title}" !`);
-        // Clear le champ bid_amount pour cette enchère
-        setForm(form => ({
-          ...form,
-          bid_amounts: { ...(form.bid_amounts || {}), [auctionId]: '' },
-          bid_amount: auctionId === selectedAuctionId ? '' : form.bid_amount,
-        }));
-        // Recharge enchères et bids si enchère sélectionnée
-        Promise.all([
-          fetch(`${AUCTION_API_URL}/auctions`, { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
-          auctionId === selectedAuctionId
-            ? fetch(`${BID_API_URL}/bids/${selectedAuctionId}`, { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json())
-            : Promise.resolve(bids),
-        ]).then(([updatedAuctions, updatedBids]) => {
-          setAuctions(updatedAuctions);
-          if (auctionId === selectedAuctionId) setBids(updatedBids);
+  // Log pour debug client
+  console.log('Place bid called with:', { auctionId, amount, amountType: typeof amount });
+
+  fetch(`${BID_API_URL}/bids`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + token,
+    },
+    // S'assurer que amount est bien un number (pas string)
+    body: JSON.stringify({ auctionId, amount: Number(amount) }),
+  })
+    .then(res => {
+      if (!res.ok) {
+        return res.json().then(data => {
+          throw new Error(data.error || "Erreur lors de l'offre");
         });
-      })
-      .catch(err => setMessage(err.message));
-  };
+      }
+      return res.json();
+    })
+    .then(newBid => {
+      setMessage(`Offre placée sur "${auctions.find(a => a.id === auctionId)?.title}" !`);
+      setForm(form => ({
+        ...form,
+        bid_amounts: { ...(form.bid_amounts || {}), [auctionId]: '' },
+        bid_amount: auctionId === selectedAuctionId ? '' : form.bid_amount,
+      }));
+      // Recharge enchères et bids si enchère sélectionnée
+      Promise.all([
+        fetch(`${AUCTION_API_URL}/auctions`, { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
+        auctionId === selectedAuctionId
+          ? fetch(`${BID_API_URL}/bids/${selectedAuctionId}`, { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json())
+          : Promise.resolve(bids),
+      ]).then(([updatedAuctions, updatedBids]) => {
+        setAuctions(updatedAuctions);
+        if (auctionId === selectedAuctionId) setBids(updatedBids);
+      });
+    })
+    .catch(err => setMessage(err.message));
+};
 
   // Register
   const register = () => {
@@ -395,7 +401,13 @@ const createAuction = () => {
                     <button
                       className="button button-red"
                       style={{ marginLeft: 10 }}
-                      onClick={() => updateAuction(a.id, { status: 'closed' })}
+                      onClick={() =>
+                        updateAuction(a.id, {
+                          ends_at: new Date(Date.now() - 1000).toISOString(), // 1 seconde dans le passé
+                        })
+                      }
+
+
                     >
                       Fermer l'enchère
                     </button>
