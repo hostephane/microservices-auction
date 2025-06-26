@@ -5,6 +5,8 @@
 Ce projet est une plateforme d’enchères en temps réel, conçue en architecture microservices.  
 Chaque service est indépendant, communiquant via API REST sur des ports distincts.
 
+![Capture d'écran de l'interface utilisateur frontend montrant la page principale de la plateforme d'enchères avec la liste des enchères actives et le menu de navigation.](./images/screen front.png)
+
 Fonctionnalités principales :  
 - Authentification JWT  
 - Gestion utilisateurs  
