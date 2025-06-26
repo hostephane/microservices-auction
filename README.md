@@ -84,6 +84,3 @@ npm start
 - Les données sont stockées en mémoire (pas de persistance sur disque)
 - Le JWT utilise une clé secrète simple (variable SECRET_KEY)
 - Le frontend React utilise la fetch API pour les appels réseau
-
-
-![Capture d'écran de l'interface utilisateur frontend montrant la page principale de la plateforme d'enchères avec la liste des enchères actives et le menu de navigation.](./images/screen front.png)
